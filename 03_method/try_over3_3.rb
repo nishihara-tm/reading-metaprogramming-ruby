@@ -5,7 +5,19 @@ TryOver3 = Module.new
 # - `test_` から始まるインスタンスメソッドが実行された場合、このクラスは `run_test` メソッドを実行する
 # - `test_` メソッドがこのクラスに実装されていなくても `test_` から始まるメッセージに応答することができる
 # - TryOver3::A1 には `test_` から始まるインスタンスメソッドが定義されていない
+class TryOver3::A1
+  def run_test
+    nil
+  end
 
+  def method_missing(method_name, *args)
+    if method_name.to_s.match(/^test_/)
+      run_test
+    else
+      super
+    end
+  end
+end
 
 # Q2
 # 以下要件を満たす TryOver3::A2Proxy クラスを作成してください。
@@ -15,6 +27,25 @@ class TryOver3::A2
   def initialize(name, value)
     instance_variable_set("@#{name}", value)
     self.class.attr_accessor name.to_sym unless respond_to? name.to_sym
+  end
+end
+
+class TryOver3::A2Proxy
+  def initialize(source)
+    @source = source
+  end
+
+  private
+  def method_missing(name, *args)
+    if @source.respond_to?(name)
+      return @source.public_send(name, *args)
+    end
+
+    super
+  end
+
+  def respond_to_missing?(name, include_private=false)
+    return @source.respond_to?(name) || supoer
   end
 end
 
@@ -31,9 +62,15 @@ module TryOver3::OriginalAccessor2
       end
 
       define_method "#{attr_sym}=" do |value|
-        if [true, false].include?(value) && !respond_to?("#{attr_sym}?")
-          self.class.define_method "#{attr_sym}?" do
-            @attr == true
+        if [true, false].include?(value)
+          if !respond_to?("#{attr_sym}?")
+            self.class.define_method "#{attr_sym}?" do
+              @attr == true
+            end
+          end
+        else
+          if respond_to?("#{attr_sym}?")
+            self.class.undef_method("#{attr_sym}?")
           end
         end
         @attr = value
@@ -48,7 +85,27 @@ end
 # TryOver3::A4.runners = [:Hoge]
 # TryOver3::A4::Hoge.run
 # # => "run Hoge"
+class TryOver3::A4
+  def self.runners=(args)
+    @runners = args
+  end
 
+  def self.runners
+    @runners
+  end
+
+  def self.const_missing(const_name)
+    return super unless self.runners.include?(const_name)
+
+    klass = Class.new do |c|
+      define_singleton_method "run" do
+        "run #{const_name}"
+      end
+    end
+
+    const_set(const_name, klass)
+  end
+end
 
 # Q5. チャレンジ問題！ 挑戦する方はテストの skip を外して挑戦してみてください。
 #
