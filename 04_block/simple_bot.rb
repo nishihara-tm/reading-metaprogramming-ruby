@@ -10,6 +10,48 @@
 #
 # Bot.new.ask('keyword') #=> 'respond bot'
 #
+class SimpleBot
+  def ask(keyword)
+   if self.class.instance_variable_get(:@blocks)&.key?(keyword)
+    self.class.instance_variable_get(:@blocks)[keyword].call
+   end
+  end
+
+  class << self
+    def respond(keyword, &block)
+      blocks = instance_variable_get(:@blocks)
+
+      if blocks.nil?
+        blocks = {keyword => block}
+      else
+        blocks[keyword] = block
+      end
+
+      instance_variable_set(:@blocks, blocks)
+    end
+
+    def setting(keyword, value)
+      results = instance_variable_get(:@results)
+
+      if results.nil?
+        results = {keyword => value}
+      else
+        results[keyword] = value
+      end
+      instance_variable_set(:@results, results)
+
+      define_singleton_method "settings" do
+        obj = Object.new
+        instance_variable_get(:@results).each do |keyword, value|
+          obj.define_singleton_method keyword do
+            value
+          end
+        end
+        obj
+      end
+    end
+  end
+end
 # 1. SimpleBotクラスを継承したクラスは、クラスメソッドrespond, setting, settingsを持ちます
 #     1. settingsメソッドは、任意のオブジェクトを返します
 #     2. settingsメソッドは、後述するクラスメソッドsettingによって渡された第一引数と同名のメソッド呼び出しに応答します
