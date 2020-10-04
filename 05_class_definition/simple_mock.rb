@@ -15,6 +15,40 @@
 # SimpleMock.mock(obj)
 # ```
 #
+module SimpleMock
+  class << self
+    def mock(obj)
+      obj.extend SimpleMock
+    end
+
+    def new(obj = nil)
+      mock(Object.new)
+    end
+  end
+
+  def expects(method_name, expected_result)
+    define_singleton_method method_name do
+      expected_result
+    end
+  end
+
+  def watch(method_name)
+    instance_variable_set("@called_#{method_name}_times", 0)
+
+    original = method(method_name)
+
+    define_singleton_method method_name do
+      method_called_times = called_times(method_name)
+      instance_variable_set("@called_#{method_name}_times", method_called_times + 1)
+
+      original.call
+    end
+  end
+
+  def called_times(method_name)
+    instance_variable_get("@called_#{method_name}_times") || 0
+  end
+end
 # モック化したオブジェクトは、expectsメソッドに応答します
 # expectsメソッドには2つの引数があり、それぞれ応答を期待するメソッド名と、そのメソッドを呼び出したときの戻り値です
 # ```
